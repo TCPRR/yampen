@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
-#include "splash.h"
+#include "login.h"
 
 static void activate(GtkApplication *app, gpointer user_data) {
-  SplashScreen(app);
+  DisplayLoginDialog(app);
 	GtkWidget *window;
 
 	window = gtk_application_window_new(app);
