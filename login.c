@@ -1,7 +1,17 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include "login.h"
-
+GtkWidget *username_entry;
+GtkWidget *password_entry;
+GCallback cb_LoginBtn(GtkWidget* self, gpointer UserData) {
+	printf("Logging in bleh\n");
+	printf("User & Server:\n");
+	printf(gtk_entry_buffer_get_text(gtk_entry_get_buffer(GTK_ENTRY(username_entry))));
+	printf("\n");
+	printf("Password:\n");
+	printf(gtk_entry_buffer_get_text(gtk_entry_get_buffer(GTK_ENTRY(password_entry))));
+	printf("\n");
+}
 void DisplayLoginDialog(GtkApplication *app) {
     GtkWidget *window;
     
@@ -59,7 +69,7 @@ void DisplayLoginDialog(GtkApplication *app) {
     gtk_widget_set_halign(username_label, GTK_ALIGN_START);
     gtk_box_append(GTK_BOX(loginbox), username_label);
     
-    GtkWidget *username_entry = gtk_entry_new();
+    username_entry = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(username_entry), "user@example.com");
     gtk_widget_set_size_request(username_entry, 250, -1);
     gtk_box_append(GTK_BOX(loginbox), username_entry);
@@ -69,7 +79,7 @@ void DisplayLoginDialog(GtkApplication *app) {
     gtk_widget_set_halign(password_label, GTK_ALIGN_START);
     gtk_box_append(GTK_BOX(loginbox), password_label);
     
-    GtkWidget *password_entry = gtk_entry_new();
+    password_entry = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(password_entry), "Enter your password");
     gtk_entry_set_visibility(GTK_ENTRY(password_entry), FALSE);
     gtk_entry_set_input_purpose(GTK_ENTRY(password_entry), GTK_INPUT_PURPOSE_PASSWORD);
@@ -86,7 +96,7 @@ void DisplayLoginDialog(GtkApplication *app) {
     GtkWidget *login_button = gtk_button_new_with_label("Login");
     gtk_widget_set_size_request(login_button, 100, -1);
     gtk_box_append(GTK_BOX(button_box), login_button);
-    
+    g_signal_connect(login_button,"clicked",G_CALLBACK(cb_LoginBtn),0);
     // register button
     GtkWidget *register_button = gtk_button_new_with_label("Register");
     gtk_widget_set_size_request(register_button, 100, -1);
