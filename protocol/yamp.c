@@ -32,8 +32,6 @@ void *YAMPRecvLoop(void *fd) {
 	char *payload;
 	while (1) {
 		if (YAMPRecv(*(int *)fd, &payload, &len)) {
-			printf(payload);
-			printf("\n");
 			cJSON *srvr = cJSON_Parse(payload);
 			cJSON *type = cJSON_GetObjectItem(srvr, "type");
 			if (strcmp(type->valuestring, "response") == 0) {
@@ -70,8 +68,10 @@ int YAMPConnect(const char *server, int *socket_out) {
 	}
 
 	*socket_out = sock;
+	int *argsock = malloc(sizeof(sock));
+	*argsock = sock;
 	pthread_t *recvthread = malloc(sizeof(pthread_t));
-	pthread_create(recvthread, NULL, YAMPRecvLoop, &sock);
+	pthread_create(recvthread, NULL, YAMPRecvLoop, argsock);
 	return 0;
 }
 
