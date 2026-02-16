@@ -42,6 +42,10 @@ void *YAMPRecvLoop(void *fd) {
 					printf("BUDDY LISTED\n");
 					onYAMPBuddyListed(response);
 				}
+				if (strcmp(reqid->valuestring, "0") == 0) {
+					printf("LOGIN RESP\n");
+					onYAMPLoggedIn();
+				}
 			}
 			free(payload);
 		}

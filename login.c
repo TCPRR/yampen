@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include "login.h"
+#include "imwnd.h"
 #include "gtk/gtkshortcut.h"
 #include "protocol/yamp.h"
 #include "globals.h"
@@ -41,7 +42,11 @@ GCallback cb_LoginBtn(GtkWidget *self, gpointer UserData) {
 		printf("success connecting\n");
 	}
 	YAMPLogin(mainsock, username, password);
+}
+void onYAMPLoggedIn() {
 	YAMPListBuddies(mainsock);
+	StartMainIMWindow(global_app);
+	gtk_widget_hide((login_window)); 
 }
 void DisplayLoginDialog(GtkApplication *app) {
 
@@ -73,7 +78,7 @@ void DisplayLoginDialog(GtkApplication *app) {
 	gtk_box_append(GTK_BOX(titlebox), title);
 
 	// subtitle
-	GtkWidget *subtitle = gtk_label_new("Federated Instant Messaging");
+	GtkWidget *subtitle = gtk_label_new("The official client of the Yet Another Messaging Protocol");
 	gtk_widget_set_opacity(subtitle, 0.7);
 	gtk_box_append(GTK_BOX(titlebox), subtitle);
 

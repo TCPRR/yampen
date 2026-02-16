@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include "login.h"
+#include "globals.h"
 #include <cjson/cJSON.h>
+GtkApplication *global_app;
 static void activate(GtkApplication *app, gpointer user_data) {
 	DisplayLoginDialog(app);
 	/*
@@ -19,12 +21,11 @@ void onYAMPBuddyListed(cJSON *Buddies) {
 	printf(cJSON_Print(Buddies));
 }
 int main(int argc, char **argv) {
-	GtkApplication *app;
 	int status;
 
-	app = gtk_application_new("xyz.defautluser0.tcp.yampen", G_APPLICATION_DEFAULT_FLAGS);
-	g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-	status = g_application_run(G_APPLICATION(app), argc, argv);
-	g_object_unref(app);
+	global_app = gtk_application_new("xyz.defautluser0.tcp.yampen", G_APPLICATION_DEFAULT_FLAGS);
+	g_signal_connect(global_app, "activate", G_CALLBACK(activate), NULL);
+	status = g_application_run(G_APPLICATION(global_app), argc, argv);
+	g_object_unref(global_app);
 	return status;
 }
