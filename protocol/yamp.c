@@ -36,11 +36,11 @@ void *YAMPRecvLoop(void *fd) {
 			printf("\n");
 			cJSON *srvr = cJSON_Parse(payload);
 			cJSON *type = cJSON_GetObjectItem(srvr, "type");
-			if (strcmp(type->valuestring, "response")) {
+			if (strcmp(type->valuestring, "response") == 0) {
 				printf("RESPONSE\n");
 				cJSON *reqid = cJSON_GetObjectItem(srvr, "reqid");
 				cJSON *response = cJSON_GetObjectItem(srvr, "response");
-				if (strcmp(reqid->valuestring, "1")) {
+				if (strcmp(reqid->valuestring, "1") == 0) {
 					printf("BUDDY LISTED\n");
 					onYAMPBuddyListed(response);
 				}
