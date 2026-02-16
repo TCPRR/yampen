@@ -40,7 +40,8 @@ GCallback cb_LoginBtn(GtkWidget *self, gpointer UserData) {
 	} else {
 		printf("success connecting\n");
 	}
-	YAMPLogin(mainsock, username, password, "1");
+	YAMPLogin(mainsock, username, password);
+	YAMPListBuddies(mainsock);
 }
 void DisplayLoginDialog(GtkApplication *app) {
 

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include "login.h"
-
+#include <cjson/cJSON.h>
 static void activate(GtkApplication *app, gpointer user_data) {
 	DisplayLoginDialog(app);
 	/*
@@ -15,6 +15,9 @@ static void activate(GtkApplication *app, gpointer user_data) {
 */
 }
 
+void onYAMPBuddyListed(cJSON *Buddies) {
+	printf(cJSON_Print(Buddies));
+}
 int main(int argc, char **argv) {
 	GtkApplication *app;
 	int status;
