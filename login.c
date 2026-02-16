@@ -1,37 +1,56 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include "login.h"
+#include "gtk/gtkshortcut.h"
 #include "protocol/yamp.h"
+#include "globals.h"
+GtkWidget *login_window;
 GtkWidget *username_entry;
 GtkWidget *password_entry;
+int mainsock;
 GCallback cb_LoginBtn(GtkWidget *self, gpointer UserData) {
 	printf("Logging in bleh\n");
 	char *uns = gtk_entry_buffer_get_text(
 	    gtk_entry_get_buffer(GTK_ENTRY(username_entry)));
+	char *password = gtk_entry_buffer_get_text(
+	    gtk_entry_get_buffer(GTK_ENTRY(password_entry)));
 	char *username;
 	char *server;
-	SplitAddress(uns, &username, &server);
-	printf("User:\n");
-	printf(username);
-	printf("\n");
-	printf("Server:\n");
-	printf(server);
-	printf("\n");
-	printf("Password:\n");
+	if (strlen(password) < 1) {
+		GtkAlertDialog *dialog = gtk_alert_dialog_new(
+		    "You need to enter your password");
+		gtk_alert_dialog_show(dialog, GTK_WINDOW(login_window));
+	}
+	if (!(SplitAddress(uns, &username, &server) && strlen(username) > 0 &&
+	      strlen(server) > 0)) {
+		GtkAlertDialog *dialog = gtk_alert_dialog_new(
+		    "Your user format seems incorrect, YAMP uses user@server.com style "
+		    "IDs");
+		gtk_alert_dialog_show(dialog, GTK_WINDOW(login_window));
+		return 0;
+	}
 	printf(gtk_entry_buffer_get_text(
 	    gtk_entry_get_buffer(GTK_ENTRY(password_entry))));
-	printf("\n");
+	int ConnectStatus = YAMPConnect(server, &mainsock);
+	if (ConnectStatus < 0) {
+		GtkAlertDialog *dialog = gtk_alert_dialog_new(
+		    "Failed connecting to the specified server!\n");
+		gtk_alert_dialog_show(dialog, GTK_WINDOW(login_window));
+		return 0;
+	} else {
+		printf("success connecting\n");
+	}
+	YAMPLogin(mainsock, username, password, "1");
 }
 void DisplayLoginDialog(GtkApplication *app) {
-	GtkWidget *window;
 
-	window = gtk_application_window_new(app);
-	gtk_window_set_title(GTK_WINDOW(window), "Yampen - Login");
-	gtk_window_set_default_size(GTK_WINDOW(window), 600, 400);
+	login_window = gtk_application_window_new(app);
+	gtk_window_set_title(GTK_WINDOW(login_window), "Yampen - Login");
+	gtk_window_set_default_size(GTK_WINDOW(login_window), 600, 400);
 
 	// maaaain horizontal box to split the window
 	GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_window_set_child(GTK_WINDOW(window), main_box);
+	gtk_window_set_child(GTK_WINDOW(login_window), main_box);
 
 	// left branding side
 	GtkWidget *titlebox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
@@ -117,5 +136,5 @@ void DisplayLoginDialog(GtkApplication *app) {
 	gtk_widget_set_size_request(register_button, 100, -1);
 	gtk_box_append(GTK_BOX(button_box), register_button);
 
-	gtk_window_present(GTK_WINDOW(window));
+	gtk_window_present(GTK_WINDOW(login_window));
 }
