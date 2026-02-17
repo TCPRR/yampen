@@ -1,2 +1,3 @@
 #include <gtk/gtk.h>
-void StartMainIMWindow(GtkApplication *app);
+void StartMainIMWindow();
+void CreateMainIMWindow(GtkApplication *app);

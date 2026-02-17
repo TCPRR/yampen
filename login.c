@@ -43,10 +43,15 @@ GCallback cb_LoginBtn(GtkWidget *self, gpointer UserData) {
 	}
 	YAMPLogin(mainsock, username, password);
 }
+gboolean CloseLoginDialog(gpointer data) {
+	gtk_widget_set_visible(login_window, FALSE);
+	return G_SOURCE_REMOVE;
+}
 void onYAMPLoggedIn() {
 	YAMPListBuddies(mainsock);
-	StartMainIMWindow(global_app);
-	gtk_widget_hide((login_window)); 
+	StartMainIMWindow();
+    g_idle_add_full(G_PRIORITY_LOW, CloseLoginDialog, NULL, NULL);
+	
 }
 void DisplayLoginDialog(GtkApplication *app) {
 

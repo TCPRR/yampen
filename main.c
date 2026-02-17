@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include "login.h"
+#include "imwnd.h"
 #include "globals.h"
 #include <cjson/cJSON.h>
 GtkApplication *global_app;
 static void activate(GtkApplication *app, gpointer user_data) {
+	CreateMainIMWindow(app);
 	DisplayLoginDialog(app);
 	/*
 	GtkWidget *window;
@@ -17,9 +19,6 @@ static void activate(GtkApplication *app, gpointer user_data) {
 */
 }
 
-void onYAMPBuddyListed(cJSON *Buddies) {
-	printf(cJSON_Print(Buddies));
-}
 int main(int argc, char **argv) {
 	int status;
 
