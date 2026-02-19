@@ -4,6 +4,7 @@
 #include "imwnd.h"
 #include "globals.h"
 #include <cjson/cJSON.h>
+#include "hashtables.h"
 GtkApplication *global_app;
 static void activate(GtkApplication *app, gpointer user_data) {
 	CreateMainIMWindow(app);
@@ -20,6 +21,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
 }
 
 int main(int argc, char **argv) {
+	InitDisplayNameTable();
 	int status;
 
 	global_app = gtk_application_new("xyz.defautluser0.tcp.yampen", G_APPLICATION_DEFAULT_FLAGS);

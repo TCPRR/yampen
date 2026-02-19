@@ -1,21 +1,20 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include "imwnd.h"
+#include "chatwnd.h"
 #include "gtk/gtkshortcut.h"
 #include "protocol/yamp.h"
 #include "globals.h"
+#include "hashtables.h"
 #include <cjson/cJSON.h>
 GtkWidget *main_window;
 GtkWidget *BuddyList;
 void on_buddy_row_activated(GtkListBox *box, GtkListBoxRow *row,
                             gpointer user_data) {
 	GtkWidget *child = gtk_list_box_row_get_child(row);
-	const char *name = gtk_label_get_text(GTK_LABEL(child));
-	const char *username = g_object_get_data(G_OBJECT(child),"username");
-
-	printf("Clicked buddy: %s, with the username %s\n", name, username);
-
-	// to dooohh: open chat window here
+	char *name = gtk_label_get_text(GTK_LABEL(child));
+	char *username = g_object_get_data(G_OBJECT(child),"username");
+	SpawnChatWindow(username);
 }
 void StartMainIMWindow() {
 	gtk_widget_set_visible(main_window, 1);
@@ -45,7 +44,7 @@ void onYAMPBuddyListed(cJSON *Buddies) {
 		    cJSON_GetObjectItem(Buddy, "name")->valuestring;
 		const char *DisplayName =
 		    cJSON_GetObjectItem(Buddy, "display_name")->valuestring;
-
+		InsertDisplayName(Name, DisplayName);
 		GtkWidget *LBRow = gtk_list_box_row_new();
 		GtkWidget *LBRowLabel = gtk_label_new(DisplayName);
 		g_object_set_data(G_OBJECT(LBRowLabel),"username",(gpointer)Name);
