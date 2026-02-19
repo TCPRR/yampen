@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <netdb.h>
 #include "yamp.h"
 #define YAMP_PORT 5224
 extern void onYAMPBuddyListed(cJSON *Buddies);
@@ -24,9 +25,8 @@ int YAMPRecv(int fd, char **payload, uint32_t *len) {
 		*payload = malloc(ntohl(*len));
 		recv(fd, *payload, ntohl(*len), 0);
 		return 1;
-	} else {
-		return 0;
 	}
+		return 0;
 }
 void *YAMPRecvLoop(void *fd) {
 	uint32_t len;
@@ -62,33 +62,40 @@ void *YAMPRecvLoop(void *fd) {
 	}
 }
 int YAMPConnect(const char *server, int *socket_out) {
-	int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (sock < 0) {
-		return -1;
-	}
+    struct addrinfo hints = {0}, *res = NULL;
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
 
-	struct sockaddr_in addr = {0};
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(YAMP_PORT);
+    char port_str[8];
+    snprintf(port_str, sizeof(port_str), "%d", YAMP_PORT);
 
-	if (inet_pton(AF_INET, server, &addr.sin_addr) <= 0) {
-		close(sock);
-		return -1;
-	}
+    int err = getaddrinfo(server, port_str, &hints, &res);
+    if (err != 0) {
+        return -1;
+    }
 
-	if (connect(sock, (const struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		close(sock);
-		return -1;
-	}
+    int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (sock < 0) {
+        freeaddrinfo(res);
+        return -1;
+    }
 
-	*socket_out = sock;
-	int *argsock = malloc(sizeof(sock));
-	*argsock = sock;
-	pthread_t *recvthread = malloc(sizeof(pthread_t));
-	pthread_create(recvthread, NULL, YAMPRecvLoop, argsock);
-	return 0;
+    if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
+        freeaddrinfo(res);
+        close(sock);
+        return -1;
+    }
+
+    freeaddrinfo(res);
+
+    *socket_out = sock;
+    int *argsock = malloc(sizeof(int));
+    *argsock = sock;
+    pthread_t *recvthread = malloc(sizeof(pthread_t));
+    pthread_create(recvthread, NULL, YAMPRecvLoop, argsock);
+    return 0;
 }
-
 int YAMPLogin(int fd, char *username, char *password) {
 	cJSON *payload = cJSON_CreateObject();
 	cJSON_AddStringToObject(payload, "username", username);
@@ -105,6 +112,15 @@ int YAMPListBuddies(int fd) {
 	cJSON_AddStringToObject(payload, "reqid", "1");
 	cJSON_AddStringToObject(payload, "type", "request");
 	cJSON_AddStringToObject(payload, "endpoint", "buddylist");
+	char *finalPayload = cJSON_Print(payload);
+	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
+	return 0;
+}
+int YAMPSendIM(int fd,char *toWho, char *content) {
+	cJSON *payload = cJSON_CreateObject();
+	cJSON_AddStringToObject(payload, "reqid", toWho);
+	cJSON_AddStringToObject(payload, "type", "request");
+	cJSON_AddStringToObject(payload, "endpoint", "sendim");
 	char *finalPayload = cJSON_Print(payload);
 	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
 	return 0;
