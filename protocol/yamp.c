@@ -51,8 +51,8 @@ void *YAMPRecvLoop(void *fd) {
 			if (strcmp(type->valuestring, "event") == 0) {
 				cJSON *event = cJSON_GetObjectItem(srvr, "event");
 				cJSON *eventdata = cJSON_GetObjectItem(srvr, "data");
-				if (strcmp(event->valuestring, "RecvIM") == 0) {
-					char *content = cJSON_GetObjectItem(eventdata, "data")->valuestring;
+				if (strcmp(event->valuestring, "recvim") == 0) {
+					char *content = cJSON_GetObjectItem(eventdata, "content")->valuestring;
 					char *author = cJSON_GetObjectItem(eventdata, "author")->valuestring;
 					onYAMPReceiveIM(author, content);
 				}
@@ -119,8 +119,10 @@ int YAMPListBuddies(int fd) {
 int YAMPSendIM(int fd,char *toWho, char *content) {
 	cJSON *payload = cJSON_CreateObject();
 	cJSON_AddStringToObject(payload, "reqid", toWho);
+	cJSON_AddStringToObject(payload, "toWho", toWho);
 	cJSON_AddStringToObject(payload, "type", "request");
 	cJSON_AddStringToObject(payload, "endpoint", "sendim");
+	cJSON_AddStringToObject(payload, "content", content);
 	char *finalPayload = cJSON_Print(payload);
 	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
 	return 0;

@@ -1,7 +1,20 @@
 #include <glib.h>
 #include "hashtables.h"
+#include <gtk/gtk.h>
 GHashTable *dtt;
+GHashTable *chatwndmap;
 void InitDisplayNameTable() { dtt = g_hash_table_new(g_str_hash, g_str_equal); }
+void InitChatWindowTable() { chatwndmap = g_hash_table_new(g_str_hash, g_str_equal); }
+void InitAllTables() {
+	InitDisplayNameTable();
+	InitChatWindowTable();
+}
+void RegisterChatWindow(GtkWidget *Window, char *forWho) {
+	g_hash_table_insert(chatwndmap, forWho, Window);
+}
+GtkWidget* GetChatWindow(char *forWho) {
+	return g_hash_table_lookup(chatwndmap,forWho);
+}
 char *InsertDisplayName(char *username, char *display_name) {
 	g_hash_table_insert(dtt, username, display_name);
 }
