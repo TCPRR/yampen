@@ -8,6 +8,7 @@
 GtkWidget *login_window;
 GtkWidget *username_entry;
 GtkWidget *password_entry;
+char* curUsername;
 int mainsock;
 GCallback cb_LoginBtn(GtkWidget *self, gpointer UserData) {
 	printf("Logging in bleh\n");
@@ -42,6 +43,7 @@ GCallback cb_LoginBtn(GtkWidget *self, gpointer UserData) {
 		printf("success connecting\n");
 	}
 	YAMPLogin(mainsock, username, password);
+	curUsername = strdup(username);
 }
 gboolean CloseLoginDialog(gpointer data) {
 	gtk_window_destroy(GTK_WINDOW(login_window));

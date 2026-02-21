@@ -5,13 +5,25 @@
 typedef struct {
 	char *toWho;
 	GtkWidget *EntryArea;
+	GtkWidget *ChatView;
 } send_im_obj;
-
+void PushUIMessage(GtkWidget* chatarea, char *username, char *content) {
+	GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(chatarea));
+	GtkTextIter end;
+	gtk_text_buffer_get_end_iter(buffer, &end);
+	gtk_text_buffer_insert_with_tags_by_name(buffer, &end, username,
+	                                         -1, "bold", NULL);
+	gtk_text_buffer_get_end_iter(buffer, &end);
+	gtk_text_buffer_insert(buffer, &end, ": ", -1);
+	gtk_text_buffer_insert(buffer, &end, content, -1);
+	gtk_text_buffer_insert(buffer, &end, "\n", -1);
+}
 void gui_send_im(GtkApplication *app, gpointer user_data) {
 	send_im_obj *dat = (send_im_obj *)user_data;
 	char *content = gtk_entry_buffer_get_text(
 	    gtk_entry_get_buffer(GTK_ENTRY(dat->EntryArea)));
 	YAMPSendIM(mainsock, dat->toWho, content);
+	PushUIMessage(dat->ChatView,curUsername,content);
 }
 void SpawnChatWindow(char *toWho) {
 	printf("spawning a chat window for %s\n", toWho);
@@ -58,6 +70,7 @@ void SpawnChatWindow(char *toWho) {
 	send_im_obj *dat = malloc(sizeof(send_im_obj));
 	dat->EntryArea = entry;
 	dat->toWho = strdup(toWho);
+	dat->ChatView = chat_view;
 	g_signal_connect(send_btn, "clicked", G_CALLBACK(gui_send_im), dat);
 
 	gtk_window_present(GTK_WINDOW(chat_window));
@@ -87,15 +100,7 @@ static gboolean receive_im_main_thread(gpointer user_data) {
 		return G_SOURCE_REMOVE;
 	}
 
-	GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(chatarea));
-	GtkTextIter end;
-	gtk_text_buffer_get_end_iter(buffer, &end);
-	gtk_text_buffer_insert_with_tags_by_name(buffer, &end, payload->username,
-	                                         -1, "bold", NULL);
-	gtk_text_buffer_get_end_iter(buffer, &end);
-	gtk_text_buffer_insert(buffer, &end, ": ", -1);
-	gtk_text_buffer_insert(buffer, &end, payload->data, -1);
-	gtk_text_buffer_insert(buffer, &end, "\n", -1);
+	PushUIMessage(chatarea,payload->username, payload->data);
 
 	free(payload->username);
 	free(payload->data);
