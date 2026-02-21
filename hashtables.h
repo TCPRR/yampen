@@ -4,3 +4,4 @@ char *InsertDisplayName(char *username, char *display_name);
 char *GetDisplayName(char *username);
 GtkWidget *GetChatWindow(char *forWho);
 void RegisterChatWindow(GtkWidget *Window, char *forWho);
+void DeregisterChatWindow(GtkWidget *Window, char *forWho);

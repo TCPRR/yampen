@@ -4,22 +4,19 @@
 #include "protocol/yamp.h"
 typedef struct {
 	char *toWho;
-	GtkWidget* EntryArea;
+	GtkWidget *EntryArea;
 } send_im_obj;
-void onYAMPReceiveIM(char *username, char *data) {
-	printf("Received an IM from %s, it says uh %s\n", username, data);
-}
+
 void gui_send_im(GtkApplication *app, gpointer user_data) {
 	send_im_obj *dat = (send_im_obj *)user_data;
 	char *content = gtk_entry_buffer_get_text(
 	    gtk_entry_get_buffer(GTK_ENTRY(dat->EntryArea)));
-	YAMPSendIM(mainsock,dat->toWho,content);
+	YAMPSendIM(mainsock, dat->toWho, content);
 }
-send_im_obj dat;
 void SpawnChatWindow(char *toWho) {
 	printf("spawning a chat window for %s\n", toWho);
 	if (GetChatWindow(toWho)) {
-		gtk_window_destroy(GTK_WINDOW(GetChatWindow(toWho)));
+		return;
 	}
 	GtkWidget *chat_window = gtk_application_window_new(global_app);
 	RegisterChatWindow(chat_window, toWho);
@@ -42,8 +39,12 @@ void SpawnChatWindow(char *toWho) {
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(chat_view), FALSE);
 	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(chat_view), GTK_WRAP_WORD_CHAR);
 	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), chat_view);
+	g_object_set_data(G_OBJECT(chat_window), "chatview", chat_view);
 	gtk_box_append(GTK_BOX(vbox), scroll);
-
+	GtkTextBuffer* buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(chat_view));
+	gtk_text_buffer_create_tag(buffer, "bold",
+		"weight", PANGO_WEIGHT_BOLD,
+		NULL);
 	// input row
 	GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
 	gtk_box_append(GTK_BOX(vbox), hbox);
@@ -54,9 +55,57 @@ void SpawnChatWindow(char *toWho) {
 
 	GtkWidget *send_btn = gtk_button_new_with_label("Send");
 	gtk_box_append(GTK_BOX(hbox), send_btn);
-	dat.EntryArea = entry;
-	dat.toWho = toWho;
-	g_signal_connect(send_btn, "clicked", G_CALLBACK(gui_send_im), &dat);
+	send_im_obj *dat = malloc(sizeof(send_im_obj));
+	dat->EntryArea = entry;
+	dat->toWho = strdup(toWho);
+	g_signal_connect(send_btn, "clicked", G_CALLBACK(gui_send_im), dat);
 
 	gtk_window_present(GTK_WINDOW(chat_window));
+}
+
+typedef struct {
+	char *username;
+	char *data;
+} IMReceivePayload;
+
+static gboolean receive_im_main_thread(gpointer user_data) {
+	IMReceivePayload *payload = user_data;
+
+	GtkWidget *targetWnd = GetChatWindow(payload->username);
+	if (!targetWnd) {
+		SpawnChatWindow(payload->username);
+		targetWnd = GetChatWindow(payload->username);
+	}
+
+	GtkWidget *chatarea =
+	    GTK_WIDGET(g_object_get_data(G_OBJECT(targetWnd), "chatview"));
+	if (!chatarea) {
+		// naw what the fuck is this sorcery
+		free(payload->username);
+		free(payload->data);
+		free(payload);
+		return G_SOURCE_REMOVE;
+	}
+
+	GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(chatarea));
+	GtkTextIter end;
+	gtk_text_buffer_get_end_iter(buffer, &end);
+	gtk_text_buffer_insert_with_tags_by_name(buffer, &end, payload->username,
+	                                         -1, "bold", NULL);
+	gtk_text_buffer_get_end_iter(buffer, &end);
+	gtk_text_buffer_insert(buffer, &end, ": ", -1);
+	gtk_text_buffer_insert(buffer, &end, payload->data, -1);
+	gtk_text_buffer_insert(buffer, &end, "\n", -1);
+
+	free(payload->username);
+	free(payload->data);
+	free(payload);
+	return G_SOURCE_REMOVE;
+}
+
+void onYAMPReceiveIM(char *username, char *data) {
+	IMReceivePayload *payload = malloc(sizeof(IMReceivePayload));
+	payload->username = strdup(username);
+	payload->data = strdup(data);
+	g_idle_add(receive_im_main_thread, payload);
 }
