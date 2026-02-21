@@ -53,7 +53,15 @@ void onYAMPLoggedIn() {
 	YAMPListBuddies(mainsock);
 	StartMainIMWindow();
     g_idle_add_full(G_PRIORITY_LOW, CloseLoginDialog, NULL, NULL);
-	
+}
+gboolean ErrorOnLoginFail(gpointer data) {
+	GtkAlertDialog *dialog = gtk_alert_dialog_new(
+		"Username or password wrong!\n");
+	gtk_alert_dialog_show(dialog, GTK_WINDOW(login_window));
+	return G_SOURCE_REMOVE;
+}
+void onYAMPLoginFail() {
+	g_idle_add_full(G_PRIORITY_LOW, ErrorOnLoginFail, NULL, NULL);
 }
 void DisplayLoginDialog(GtkApplication *app) {
 

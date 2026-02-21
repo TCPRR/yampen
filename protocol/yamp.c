@@ -14,6 +14,7 @@
 extern void onYAMPBuddyListed(cJSON *Buddies);
 extern void onYAMPUserDetailsFetched(cJSON *Detail);
 extern void onYAMPLoggedIn();
+extern void onYAMPLoginFail();
 extern void onYAMPReceiveIM(char* username, char* data);
 int YAMPSend(int fd, void *payload, uint32_t size) {
 	uint32_t NlSize = htonl(size);
@@ -45,7 +46,11 @@ void *YAMPRecvLoop(void *fd) {
 				}
 				if (strcmp(reqid->valuestring, "0") == 0) {
 					printf("LOGIN RESP\n");
-					onYAMPLoggedIn();
+					if (strcmp(response->valuestring, "success") == 0) {
+						onYAMPLoggedIn();
+					} else {
+						onYAMPLoginFail();
+					}
 				}
 			}
 			if (strcmp(type->valuestring, "event") == 0) {

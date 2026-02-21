@@ -2,6 +2,7 @@
 #include <gtk/gtk.h>
 #include "imwnd.h"
 #include "chatwnd.h"
+#include "glibconfig.h"
 #include "gtk/gtkshortcut.h"
 #include "protocol/yamp.h"
 #include "globals.h"
@@ -9,9 +10,11 @@
 #include <cjson/cJSON.h>
 GtkWidget *main_window;
 GtkWidget *BuddyList;
+GtkWidget *GuildList;
 void on_buddy_row_activated(GtkListBox *box, GtkListBoxRow *row,
                             gpointer user_data) {
-	GtkWidget *child = gtk_widget_get_next_sibling(gtk_widget_get_first_child(gtk_list_box_row_get_child(row)));
+	GtkWidget *child = gtk_widget_get_next_sibling(
+	    gtk_widget_get_first_child(gtk_list_box_row_get_child(row)));
 	char *name = gtk_label_get_text(GTK_LABEL(child));
 	char *username = g_object_get_data(G_OBJECT(child), "username");
 	SpawnChatWindow(username);
@@ -19,12 +22,54 @@ void on_buddy_row_activated(GtkListBox *box, GtkListBoxRow *row,
 void StartMainIMWindow() {
 	gtk_widget_set_visible(main_window, 1);
 	gtk_window_present(GTK_WINDOW(main_window));
+	GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+	GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+
+
+
+
+	GuildList = gtk_list_box_new();
+	GtkWidget *dmsbtn = gtk_list_box_row_new();
+	GtkWidget *dmsbtnimg = gtk_image_new_from_file("./yamp.png");
+
+	gtk_widget_set_size_request(dmsbtnimg, 36, 36);
+	gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(dmsbtn), dmsbtnimg);
+	gtk_list_box_append(GTK_LIST_BOX(GuildList),dmsbtn);
+	gtk_box_append(GTK_BOX(hbox),GuildList);
+
+	gtk_widget_set_hexpand(hbox, TRUE);
+	gtk_window_set_child(GTK_WINDOW(main_window), vbox);
+	gtk_box_append(GTK_BOX(vbox), hbox);
+
+
+
+
+
+
 	BuddyList = gtk_list_box_new();
-	gtk_window_set_child(GTK_WINDOW(main_window), BuddyList);
+	gtk_widget_set_hexpand(BuddyList, TRUE);
+	gtk_widget_set_vexpand(BuddyList, TRUE);
+	gtk_box_append(GTK_BOX(hbox), BuddyList);
 	gtk_list_box_set_selection_mode(GTK_LIST_BOX(BuddyList),
 	                                GTK_SELECTION_MULTIPLE); // i need hlep
 	g_signal_connect(BuddyList, "row-activated",
 	                 G_CALLBACK(on_buddy_row_activated), NULL);
+	GtkWidget *UserDetailsBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+	GtkWidget *UsernameLabel = gtk_label_new(curUsername);
+	GtkWidget *Pfp = gtk_image_new_from_file("./pfp.png");
+	
+	gtk_widget_set_size_request(Pfp, 36, 36);
+	GtkCssProvider *provider = gtk_css_provider_new();
+	gtk_css_provider_load_from_data(
+		provider,
+		"image { border-radius: 100%; border: 2px solid #108020; }", -1);
+
+	gtk_style_context_add_provider(gtk_widget_get_style_context(Pfp),
+	                               GTK_STYLE_PROVIDER(provider),
+	                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+	gtk_box_append(GTK_BOX(UserDetailsBox),Pfp);
+	gtk_box_append(GTK_BOX(UserDetailsBox), UsernameLabel);
+	gtk_box_append(GTK_BOX(vbox), UserDetailsBox);
 }
 
 void CreateMainIMWindow(GtkApplication *app) {
@@ -48,15 +93,14 @@ void onYAMPBuddyListed(cJSON *Buddies) {
 		GtkWidget *LBRow = gtk_list_box_row_new();
 		GtkWidget *LBRowLabel = gtk_label_new(DisplayName);
 		GtkWidget *Pfp;
-		if(!cJSON_GetObjectItem(Buddy, "pfp")){
+		if (!cJSON_GetObjectItem(Buddy, "pfp")) {
 			Pfp = gtk_image_new_from_file("./pfp.png");
 		}
 		gtk_widget_set_size_request(Pfp, 36, 36);
-		gtk_widget_set_hexpand(Pfp, FALSE);
-		gtk_widget_set_vexpand(Pfp, FALSE);
 		GtkCssProvider *provider = gtk_css_provider_new();
 		gtk_css_provider_load_from_data(
-		    provider, "image { border-radius: 100%; border: 2px solid #108020; }", -1);
+		    provider,
+		    "image { border-radius: 100%; border: 2px solid #108020; }", -1);
 
 		gtk_style_context_add_provider(gtk_widget_get_style_context(Pfp),
 		                               GTK_STYLE_PROVIDER(provider),
