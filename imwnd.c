@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include "imwnd.h"
+#include "login.h"
 #include "chatwnd.h"
 #include "glibconfig.h"
 #include "gtk/gtkshortcut.h"
@@ -11,6 +12,10 @@
 GtkWidget *main_window;
 GtkWidget *BuddyList;
 GtkWidget *GuildList;
+void onYAMPDisconnected() {
+	GtkAlertDialog *alert = gtk_alert_dialog_new("Server disconnected!");
+	DisplayLoginDialog(global_app);
+}
 void on_buddy_row_activated(GtkListBox *box, GtkListBoxRow *row,
                             gpointer user_data) {
 	GtkWidget *child = gtk_widget_get_next_sibling(

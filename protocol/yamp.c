@@ -15,6 +15,7 @@ extern void onYAMPBuddyListed(cJSON *Buddies);
 extern void onYAMPUserDetailsFetched(cJSON *Detail);
 extern void onYAMPLoggedIn();
 extern void onYAMPLoginFail();
+extern void onYAMPDisconnected();
 extern void onYAMPReceiveIM(char* username, char* data);
 int YAMPSend(int fd, void *payload, uint32_t size) {
 	uint32_t NlSize = htonl(size);
@@ -27,7 +28,7 @@ int YAMPRecv(int fd, char **payload, uint32_t *len) {
 		recv(fd, *payload, ntohl(*len), 0);
 		return 1;
 	}
-		return 0;
+		return 0; //server got busted by a segfault :sob:
 }
 void *YAMPRecvLoop(void *fd) {
 	uint32_t len;
@@ -63,6 +64,8 @@ void *YAMPRecvLoop(void *fd) {
 				}
 			}
 			free(payload);
+		} else {
+			onYAMPDisconnected();
 		}
 	}
 }

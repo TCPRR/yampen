@@ -12,7 +12,7 @@ void InitAllTables() {
 void RegisterChatWindow(GtkWidget *Window, char *forWho) {
 	g_hash_table_insert(chatwndmap, forWho, Window);
 }
-void DeregisterChatWindow(GtkWidget *Window, char *forWho) {
+void DeregisterChatWindow(char *forWho) {
 	g_hash_table_remove(chatwndmap, forWho);
 }
 GtkWidget* GetChatWindow(char *forWho) {

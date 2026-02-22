@@ -25,6 +25,10 @@ void gui_send_im(GtkApplication *app, gpointer user_data) {
 	YAMPSendIM(mainsock, dat->toWho, content);
 	PushUIMessage(dat->ChatView,curUsername,content);
 }
+gboolean ChatWindowClose(gpointer data) {
+	DeregisterChatWindow((char*)data);
+	return FALSE;
+}
 void SpawnChatWindow(char *toWho) {
 	printf("spawning a chat window for %s\n", toWho);
 	if (GetChatWindow(toWho)) {
@@ -71,6 +75,7 @@ void SpawnChatWindow(char *toWho) {
 	dat->toWho = strdup(toWho);
 	dat->ChatView = chat_view;
 	g_signal_connect(send_btn, "clicked", G_CALLBACK(gui_send_im), dat);
+	g_signal_connect(chat_window, "close-request", G_CALLBACK(ChatWindowClose), toWho);
 	RegisterChatWindow(chat_window, dat->toWho);
 
 	gtk_window_present(GTK_WINDOW(chat_window));
