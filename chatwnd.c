@@ -30,21 +30,25 @@ void PushUIMessage(GtkWidget *chatarea, char *username, char *content) {
 	gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(msgrow), msghbox);
 	gtk_list_box_append(GTK_LIST_BOX(chatarea), msgrow);
 
-	
-    GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(g_object_get_data(G_OBJECT(gtk_widget_get_ancestor(chatarea,GTK_TYPE_WINDOW)), "scroll")));
-    gtk_adjustment_set_value(adj, gtk_adjustment_get_upper(adj));
+	GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment(
+	    GTK_SCROLLED_WINDOW(g_object_get_data(
+	        G_OBJECT(gtk_widget_get_ancestor(chatarea, GTK_TYPE_WINDOW)),
+	        "scroll")));
+	gtk_adjustment_set_value(adj, gtk_adjustment_get_upper(adj));
 }
 static gboolean gui_send_im(GtkEventControllerKey *controller, guint keyval,
                             guint keycode, GdkModifierType state,
                             gpointer user_data) {
 	if (keyval == GDK_KEY_KP_Enter) {
 		send_im_obj *dat = (send_im_obj *)user_data;
-		GtkTextBuffer *buf = gtk_text_view_get_buffer(GTK_TEXT_VIEW(dat->EntryArea));
-        GtkTextIter start, end;
-        gtk_text_buffer_get_start_iter(buf, &start);
-        gtk_text_buffer_get_end_iter(buf, &end);
+		GtkTextBuffer *buf =
+		    gtk_text_view_get_buffer(GTK_TEXT_VIEW(dat->EntryArea));
+		GtkTextIter start, end;
+		gtk_text_buffer_get_start_iter(buf, &start);
+		gtk_text_buffer_get_end_iter(buf, &end);
 		char *content = gtk_text_buffer_get_text(
-		    gtk_text_view_get_buffer(GTK_TEXT_VIEW(dat->EntryArea)),&start,&end,TRUE);
+		    gtk_text_view_get_buffer(GTK_TEXT_VIEW(dat->EntryArea)), &start,
+		    &end, TRUE);
 		YAMPSendIM(mainsock, dat->where, content);
 		gtk_text_buffer_set_text(
 		    gtk_text_view_get_buffer(GTK_TEXT_VIEW(dat->EntryArea)), "", 0);
@@ -57,19 +61,36 @@ gboolean ChatWindowClose(gpointer data) {
 	return FALSE;
 }
 void SpawnChatWindow(char *toWho) {
-	printf("spawning a chat window for %s\n", toWho);
 	if (GetChatWindow(toWho)) {
 		return;
 	}
-	char *otherGuy = GetOtherFromChannel(toWho, curUsername);
-	if (!otherGuy) {
-		// future guild stuff go here btw
+	chat WhereParsed;
+	if (!YAMPProcessWhere(toWho, curUsername, &WhereParsed)) {
+		printf("malformed where, %s, returning\n",
+		toWho);
+		return;
+	}
+	if (WhereParsed.type == YAMP_GUILD) {
+		printf("spawning a guild chat window at #%s\n",
+		       WhereParsed.ChannelName);
+	} else if (WhereParsed.type == YAMP_DM) {
+		printf("spawning a DMs chat window for %s\n", WhereParsed.OtherGuy);
 	}
 	GtkWidget *chat_window = gtk_application_window_new(global_app);
-	char *window_title = malloc(6 + 3 + strlen(GetDisplayName(otherGuy)) + 1);
-	sprintf(window_title, "Yampen - %s", GetDisplayName(otherGuy));
-	gtk_window_set_title(GTK_WINDOW(chat_window), window_title);
-	gtk_window_set_default_size(GTK_WINDOW(chat_window), 600, 400);
+	if (WhereParsed.type == YAMP_DM) {
+		char *window_title =
+		    malloc(6 + 3 + strlen(GetDisplayName(WhereParsed.OtherGuy)) + 1);
+		sprintf(window_title, "Yampen - %s", GetDisplayName(WhereParsed.OtherGuy));
+		gtk_window_set_title(GTK_WINDOW(chat_window), window_title);
+		gtk_window_set_default_size(GTK_WINDOW(chat_window), 600, 400);
+	} else {
+		char *window_title =
+		    malloc(15 + strlen(WhereParsed.GuildName) + strlen(WhereParsed.ChannelName) + 1);
+		sprintf(window_title, "Yampen - %s - #%s", WhereParsed.GuildName, WhereParsed.ChannelName);
+		gtk_window_set_title(GTK_WINDOW(chat_window), window_title);
+		gtk_window_set_default_size(GTK_WINDOW(chat_window), 600, 400);
+		
+	}
 
 	// vertical arragning box thing
 	GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);

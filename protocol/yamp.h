@@ -1,7 +1,18 @@
+#include <glib.h>
+typedef struct {
+	char type; // 0 = DM, 1 = Guild Channel
+	char *where; // to be used in the APIs
+	char *OtherGuy; // for DMs only, otherwise NULL.. CHECK AND DO NOT
+	                // DEREFERENCE THAAT!
+	char *GuildName; // Above but for guilds!
+	char *ChannelName; // same same, but differeeeent :sob:
+} chat;
 int YAMPConnect(const char *server, int *socket_out);
 int SplitAddress(char *address, char **username, char **server);
 int YAMPLogin(int fd, char *username, char *password);
 int YAMPListBuddies(int fd);
 int YAMPSendIM(int fd, char* where, char *content);
 char *MakeDMChannel(const char *a, const char *b);
-char* GetOtherFromChannel(const char *channel, const char *me);
+gboolean YAMPProcessWhere(char *where, char *curUsername, chat* out);
+#define YAMP_GUILD 1
+#define YAMP_DM 0

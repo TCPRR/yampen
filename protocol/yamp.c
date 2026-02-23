@@ -1,5 +1,6 @@
 #include "cjson/cJSON.h"
 #include "glib.h"
+#include "glibconfig.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -16,24 +17,57 @@ extern void onYAMPUserDetailsFetched(cJSON *Detail);
 extern void onYAMPLoggedIn();
 extern void onYAMPLoginFail();
 extern void onYAMPDisconnected();
-char* MakeDMChannel(const char *a, const char *b) {
-    if (strcmp(a, b) < 0)
-        return g_strdup_printf("%s-%s", a, b);
-    else
-        return g_strdup_printf("%s-%s", b, a);
+char *MakeDMChannel(const char *a, const char *b) {
+	if (strcmp(a, b) < 0)
+		return g_strdup_printf("%s|%s", a, b);
+	else
+		return g_strdup_printf("%s|%s", b, a);
 }
-char* GetOtherFromChannel(const char *channel, const char *me) {
-    char *copy = strdup(channel);
-    char *dash = strchr(copy, '-');
-    if (!dash) { free(copy); return NULL; }
-    *dash = '\0';
-    char *a = copy;
-    char *b = dash + 1;
-    char *result = strcmp(a, me) == 0 ? strdup(b) : strdup(a);
-    free(copy);
-    return result;
+
+//////////////////////////////////////////
+///    YAMP'S WHERE PARAMETER STYLE    ///
+///  GUILDS:              DMS:         ///
+/// ^guildName#channel    aguy-boi     ///
+//////////////////////////////////////////
+gboolean YAMPProcessWhere(char *where, char *curUsername, chat *out) {
+	char *dupedwhere = strdup(where);
+	char *safewhere = strdup(where);
+	chat retval = {0};
+	if (*where == '^') {
+		// GUILD PROBABLY
+		char *hashtag = strchr(safewhere, '#');
+		if (!hashtag) {
+			return FALSE;
+		}
+		*hashtag = '\0';
+		retval.GuildName = safewhere + 1;
+		retval.ChannelName = hashtag + 1;
+		retval.OtherGuy = NULL;
+		retval.type = YAMP_GUILD;
+		retval.where = dupedwhere;
+		*out = retval;
+		return TRUE;
+	} else {
+		// Could be a damn DM?
+		char *minus = strchr(safewhere, '|');
+		if (!minus) {
+			return FALSE; // nah it wasnt anything LMFAO
+		}
+		*minus = '\0';
+		retval.ChannelName = NULL;
+		retval.type = YAMP_DM;
+		retval.where = dupedwhere;
+		if (strcmp(where, curUsername) == 0) {
+			retval.OtherGuy = minus + 1;
+		} else {
+			retval.OtherGuy = safewhere;
+		}
+		retval.GuildName = NULL;
+		*out = retval;
+		return TRUE;
+	}
 }
-extern void onYAMPReceiveIM(char* username, char* where,char* data);
+extern void onYAMPReceiveIM(char *username, char *where, char *data);
 int YAMPSend(int fd, void *payload, uint32_t size) {
 	uint32_t NlSize = htonl(size);
 	send(fd, &NlSize, 4, 0);
@@ -45,7 +79,7 @@ int YAMPRecv(int fd, char **payload, uint32_t *len) {
 		recv(fd, *payload, ntohl(*len), 0);
 		return 1;
 	}
-		return 0; //server got busted by a segfault :sob:
+	return 0; // server got busted by a segfault :sob:
 }
 void *YAMPRecvLoop(void *fd) {
 	uint32_t len;
@@ -75,9 +109,12 @@ void *YAMPRecvLoop(void *fd) {
 				cJSON *event = cJSON_GetObjectItem(srvr, "event");
 				cJSON *eventdata = cJSON_GetObjectItem(srvr, "data");
 				if (strcmp(event->valuestring, "recvim") == 0) {
-					char *content = cJSON_GetObjectItem(eventdata, "content")->valuestring;
-					char *author = cJSON_GetObjectItem(eventdata, "author")->valuestring;
-					char *where = cJSON_GetObjectItem(eventdata, "where")->valuestring;
+					char *content =
+					    cJSON_GetObjectItem(eventdata, "content")->valuestring;
+					char *author =
+					    cJSON_GetObjectItem(eventdata, "author")->valuestring;
+					char *where =
+					    cJSON_GetObjectItem(eventdata, "where")->valuestring;
 					onYAMPReceiveIM(author, where, content);
 				}
 			}
@@ -88,39 +125,39 @@ void *YAMPRecvLoop(void *fd) {
 	}
 }
 int YAMPConnect(const char *server, int *socket_out) {
-    struct addrinfo hints = {0}, *res = NULL;
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
+	struct addrinfo hints = {0}, *res = NULL;
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
 
-    char port_str[8];
-    snprintf(port_str, sizeof(port_str), "%d", YAMP_PORT);
+	char port_str[8];
+	snprintf(port_str, sizeof(port_str), "%d", YAMP_PORT);
 
-    int err = getaddrinfo(server, port_str, &hints, &res);
-    if (err != 0) {
-        return -1;
-    }
+	int err = getaddrinfo(server, port_str, &hints, &res);
+	if (err != 0) {
+		return -1;
+	}
 
-    int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (sock < 0) {
-        freeaddrinfo(res);
-        return -1;
-    }
+	int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if (sock < 0) {
+		freeaddrinfo(res);
+		return -1;
+	}
 
-    if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
-        freeaddrinfo(res);
-        close(sock);
-        return -1;
-    }
+	if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
+		freeaddrinfo(res);
+		close(sock);
+		return -1;
+	}
 
-    freeaddrinfo(res);
+	freeaddrinfo(res);
 
-    *socket_out = sock;
-    int *argsock = malloc(sizeof(int));
-    *argsock = sock;
-    pthread_t *recvthread = malloc(sizeof(pthread_t));
-    pthread_create(recvthread, NULL, YAMPRecvLoop, argsock);
-    return 0;
+	*socket_out = sock;
+	int *argsock = malloc(sizeof(int));
+	*argsock = sock;
+	pthread_t *recvthread = malloc(sizeof(pthread_t));
+	pthread_create(recvthread, NULL, YAMPRecvLoop, argsock);
+	return 0;
 }
 int YAMPLogin(int fd, char *username, char *password) {
 	cJSON *payload = cJSON_CreateObject();
@@ -142,7 +179,7 @@ int YAMPListBuddies(int fd) {
 	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
 	return 0;
 }
-int YAMPSendIM(int fd, char* where, char *content) {
+int YAMPSendIM(int fd, char *where, char *content) {
 	cJSON *payload = cJSON_CreateObject();
 	cJSON_AddStringToObject(payload, "reqid", where);
 	cJSON_AddStringToObject(payload, "where", where);
