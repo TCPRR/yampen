@@ -61,7 +61,11 @@ void StartMainIMWindow() {
 	g_signal_connect(BuddyList, "row-activated",
 	                 G_CALLBACK(on_buddy_row_activated), NULL);
 	GtkWidget *UserDetailsBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-	GtkWidget *UsernameLabel = gtk_label_new(curUsername);
+	char *displayName = GetDisplayName(curUsername);
+	if (!displayName) {
+		displayName=curUsername;
+	}
+	GtkWidget *UsernameLabel = gtk_label_new(displayName);
 	GtkWidget *Pfp = gtk_image_new_from_file("./pfp.png");
 	
 	gtk_widget_set_size_request(Pfp, 36, 36);
@@ -118,4 +122,11 @@ void onYAMPBuddyListed(cJSON *Buddies) {
 		gtk_widget_set_halign(LBRowLabel, GTK_ALIGN_START);
 		gtk_list_box_append(GTK_LIST_BOX(BuddyList), LBRow);
 	}
+}
+
+void onYAMPUserDetailsFetched(cJSON *Details) {
+	char* username = cJSON_GetObjectItem(Details, "name")->valuestring;
+	char *display_name =
+	    cJSON_GetObjectItem(Details, "display_name")->valuestring;
+	InsertDisplayName(username, display_name);
 }

@@ -99,6 +99,7 @@ void *YAMPRecvLoop(void *fd) {
 				if (strcmp(reqid->valuestring, "0") == 0) {
 					printf("LOGIN RESP\n");
 					if (strcmp(response->valuestring, "success") == 0) {
+						onYAMPUserDetailsFetched(cJSON_GetObjectItem(srvr, "user"));
 						onYAMPLoggedIn();
 					} else {
 						onYAMPLoginFail();

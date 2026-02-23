@@ -149,8 +149,12 @@ static gboolean receive_im_main_thread(gpointer user_data) {
 
 	GtkWidget *chatarea =
 	    GTK_WIDGET(g_object_get_data(G_OBJECT(targetWnd), "chatview"));
-
-	PushUIMessage(chatarea, payload->username, payload->data);
+	char *username;
+	username = GetDisplayName(payload->username);
+	if (!username) {
+		username = payload->username;
+	}
+	PushUIMessage(chatarea, username, payload->data);
 	return G_SOURCE_REMOVE;
 }
 
