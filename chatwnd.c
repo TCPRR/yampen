@@ -21,6 +21,7 @@ void PushUIMessage(GtkWidget *chatarea, char *username, char *content) {
 	gtk_widget_set_halign(usrtext, GTK_ALIGN_START);
 	gtk_box_append(GTK_BOX(msgvbox), usrtext);
 	GtkWidget *msgtext = gtk_label_new(content);
+	gtk_widget_set_halign(msgtext, GTK_ALIGN_START);
 	gtk_box_append(GTK_BOX(msgvbox), msgtext);
 	GtkWidget *userpfp = gtk_image_new_from_file("pfp.png");
 	gtk_widget_set_size_request(userpfp, 36, 36);
