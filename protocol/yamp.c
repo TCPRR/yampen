@@ -16,7 +16,24 @@ extern void onYAMPUserDetailsFetched(cJSON *Detail);
 extern void onYAMPLoggedIn();
 extern void onYAMPLoginFail();
 extern void onYAMPDisconnected();
-extern void onYAMPReceiveIM(char* username, char* data);
+char* MakeDMChannel(const char *a, const char *b) {
+    if (strcmp(a, b) < 0)
+        return g_strdup_printf("%s-%s", a, b);
+    else
+        return g_strdup_printf("%s-%s", b, a);
+}
+char* GetOtherFromChannel(const char *channel, const char *me) {
+    char *copy = strdup(channel);
+    char *dash = strchr(copy, '-');
+    if (!dash) { free(copy); return NULL; }
+    *dash = '\0';
+    char *a = copy;
+    char *b = dash + 1;
+    char *result = strcmp(a, me) == 0 ? strdup(b) : strdup(a);
+    free(copy);
+    return result;
+}
+extern void onYAMPReceiveIM(char* username, char* where,char* data);
 int YAMPSend(int fd, void *payload, uint32_t size) {
 	uint32_t NlSize = htonl(size);
 	send(fd, &NlSize, 4, 0);
@@ -60,7 +77,8 @@ void *YAMPRecvLoop(void *fd) {
 				if (strcmp(event->valuestring, "recvim") == 0) {
 					char *content = cJSON_GetObjectItem(eventdata, "content")->valuestring;
 					char *author = cJSON_GetObjectItem(eventdata, "author")->valuestring;
-					onYAMPReceiveIM(author, content);
+					char *where = cJSON_GetObjectItem(eventdata, "where")->valuestring;
+					onYAMPReceiveIM(author, where, content);
 				}
 			}
 			free(payload);
@@ -124,10 +142,10 @@ int YAMPListBuddies(int fd) {
 	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
 	return 0;
 }
-int YAMPSendIM(int fd,char *toWho, char *content) {
+int YAMPSendIM(int fd, char* where, char *content) {
 	cJSON *payload = cJSON_CreateObject();
-	cJSON_AddStringToObject(payload, "reqid", toWho);
-	cJSON_AddStringToObject(payload, "toWho", toWho);
+	cJSON_AddStringToObject(payload, "reqid", where);
+	cJSON_AddStringToObject(payload, "where", where);
 	cJSON_AddStringToObject(payload, "type", "request");
 	cJSON_AddStringToObject(payload, "endpoint", "sendim");
 	cJSON_AddStringToObject(payload, "content", content);

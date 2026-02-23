@@ -22,7 +22,8 @@ void on_buddy_row_activated(GtkListBox *box, GtkListBoxRow *row,
 	    gtk_widget_get_first_child(gtk_list_box_row_get_child(row)));
 	char *name = gtk_label_get_text(GTK_LABEL(child));
 	char *username = g_object_get_data(G_OBJECT(child), "username");
-	SpawnChatWindow(username);
+	
+	SpawnChatWindow(MakeDMChannel(username, curUsername));
 }
 void StartMainIMWindow() {
 	gtk_widget_set_visible(main_window, 1);

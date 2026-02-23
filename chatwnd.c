@@ -3,11 +3,11 @@
 #include "hashtables.h"
 #include "protocol/yamp.h"
 typedef struct {
-	char *toWho;
+	char* where;
 	GtkWidget *EntryArea;
 	GtkWidget *ChatView;
 } send_im_obj;
-void PushUIMessage(GtkWidget* chatarea, char *username, char *content) {
+void PushUIMessage(GtkWidget *chatarea, char *username, char *content) {
 	GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(chatarea));
 	GtkTextIter end;
 	gtk_text_buffer_get_end_iter(buffer, &end);
@@ -22,8 +22,8 @@ void gui_send_im(GtkApplication *app, gpointer user_data) {
 	send_im_obj *dat = (send_im_obj *)user_data;
 	char *content = gtk_entry_buffer_get_text(
 	    gtk_entry_get_buffer(GTK_ENTRY(dat->EntryArea)));
-	YAMPSendIM(mainsock, dat->toWho, content);
-	PushUIMessage(dat->ChatView,curUsername,content);
+	YAMPSendIM(mainsock, dat->where, content);
+	gtk_entry_buffer_set_text(gtk_entry_get_buffer(GTK_ENTRY(dat->EntryArea)),"",0);
 }
 gboolean ChatWindowClose(gpointer data) {
 	DeregisterChatWindow((char*)data);
@@ -34,9 +34,13 @@ void SpawnChatWindow(char *toWho) {
 	if (GetChatWindow(toWho)) {
 		return;
 	}
+	char *otherGuy = GetOtherFromChannel(toWho, curUsername);
+	if (!otherGuy) {
+		//future guild stuff go here btw
+	}
 	GtkWidget *chat_window = gtk_application_window_new(global_app);
-	char *window_title = malloc(6 + 3 + strlen(GetDisplayName(toWho)) + 1);
-	sprintf(window_title, "Yampen - %s", GetDisplayName(toWho));
+	char *window_title = malloc(6 + 3 + strlen(GetDisplayName(otherGuy)) + 1);
+	sprintf(window_title, "Yampen - %s", GetDisplayName(otherGuy));
 	gtk_window_set_title(GTK_WINDOW(chat_window), window_title);
 	gtk_window_set_default_size(GTK_WINDOW(chat_window), 600, 400);
 
@@ -72,11 +76,11 @@ void SpawnChatWindow(char *toWho) {
 	gtk_box_append(GTK_BOX(hbox), send_btn);
 	send_im_obj *dat = malloc(sizeof(send_im_obj));
 	dat->EntryArea = entry;
-	dat->toWho = strdup(toWho);
 	dat->ChatView = chat_view;
+	dat->where = strdup(toWho);
 	g_signal_connect(send_btn, "clicked", G_CALLBACK(gui_send_im), dat);
-	g_signal_connect(chat_window, "close-request", G_CALLBACK(ChatWindowClose), toWho);
-	RegisterChatWindow(chat_window, dat->toWho);
+	g_signal_connect(chat_window, "close-request", G_CALLBACK(ChatWindowClose), dat->where);
+	RegisterChatWindow(chat_window, dat->where);
 
 	gtk_window_present(GTK_WINDOW(chat_window));
 }
@@ -84,38 +88,29 @@ void SpawnChatWindow(char *toWho) {
 typedef struct {
 	char *username;
 	char *data;
+	char* where;
 } IMReceivePayload;
 
 static gboolean receive_im_main_thread(gpointer user_data) {
 	IMReceivePayload *payload = user_data;
 
-	GtkWidget *targetWnd = GetChatWindow(payload->username);
+	GtkWidget *targetWnd = GetChatWindow(payload->where);
 	if (!targetWnd) {
-		SpawnChatWindow(payload->username);
-		targetWnd = GetChatWindow(payload->username);
+		SpawnChatWindow(payload->where);
+		targetWnd = GetChatWindow(payload->where);
 	}
 
 	GtkWidget *chatarea =
 	    GTK_WIDGET(g_object_get_data(G_OBJECT(targetWnd), "chatview"));
-	if (!chatarea) {
-		// naw what the fuck is this sorcery
-		free(payload->username);
-		free(payload->data);
-		free(payload);
-		return G_SOURCE_REMOVE;
-	}
 
 	PushUIMessage(chatarea,payload->username, payload->data);
-
-	free(payload->username);
-	free(payload->data);
-	free(payload);
 	return G_SOURCE_REMOVE;
 }
 
-void onYAMPReceiveIM(char *username, char *data) {
+void onYAMPReceiveIM(char *username,char* where, char *data) {
 	IMReceivePayload *payload = malloc(sizeof(IMReceivePayload));
 	payload->username = strdup(username);
 	payload->data = strdup(data);
+	payload->where = strdup(where);
 	g_idle_add(receive_im_main_thread, payload);
 }
