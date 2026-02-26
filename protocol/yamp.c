@@ -14,6 +14,8 @@
 #define YAMP_PORT 5224
 extern void onYAMPBuddyListed(cJSON *Buddies);
 extern void onYAMPUserDetailsFetched(cJSON *Detail);
+extern void onYAMPSpacesFetched(cJSON *Spaces);
+extern void onYAMPChannelsFetched(cJSON *Channels);
 extern void onYAMPLoggedIn();
 extern void onYAMPLoginFail();
 extern void onYAMPDisconnected();
@@ -89,7 +91,6 @@ void *YAMPRecvLoop(void *fd) {
 			cJSON *srvr = cJSON_Parse(payload);
 			cJSON *type = cJSON_GetObjectItem(srvr, "type");
 			if (strcmp(type->valuestring, "response") == 0) {
-				printf("RESPONSE\n");
 				cJSON *reqid = cJSON_GetObjectItem(srvr, "reqid");
 				cJSON *response = cJSON_GetObjectItem(srvr, "response");
 				if (strcmp(reqid->valuestring, "1") == 0) {
@@ -99,11 +100,16 @@ void *YAMPRecvLoop(void *fd) {
 				if (strcmp(reqid->valuestring, "0") == 0) {
 					printf("LOGIN RESP\n");
 					if (strcmp(response->valuestring, "success") == 0) {
-						onYAMPUserDetailsFetched(cJSON_GetObjectItem(srvr, "user"));
 						onYAMPLoggedIn();
+						onYAMPUserDetailsFetched(
+						    cJSON_GetObjectItem(srvr, "user"));
+						onYAMPSpacesFetched(cJSON_GetObjectItem(cJSON_GetObjectItem(srvr, "user"),"spaces"));
 					} else {
 						onYAMPLoginFail();
 					}
+				}
+				if (*(reqid->valuestring) == '2') {
+					onYAMPChannelsFetched(cJSON_GetObjectItem(srvr, "response"));
 				}
 			}
 			if (strcmp(type->valuestring, "event") == 0) {
@@ -122,8 +128,10 @@ void *YAMPRecvLoop(void *fd) {
 			free(payload);
 		} else {
 			onYAMPDisconnected();
+			break;
 		}
 	}
+	return 0;
 }
 int YAMPConnect(const char *server, int *socket_out) {
 	struct addrinfo hints = {0}, *res = NULL;
@@ -178,6 +186,7 @@ int YAMPListBuddies(int fd) {
 	cJSON_AddStringToObject(payload, "endpoint", "buddylist");
 	char *finalPayload = cJSON_Print(payload);
 	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
+	cJSON_free(finalPayload);
 	return 0;
 }
 int YAMPSendIM(int fd, char *where, char *content) {
@@ -189,6 +198,21 @@ int YAMPSendIM(int fd, char *where, char *content) {
 	cJSON_AddStringToObject(payload, "content", content);
 	char *finalPayload = cJSON_Print(payload);
 	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
+	cJSON_free(finalPayload);
+	return 0;
+}
+int YAMPListSpaceChannels(int fd, char *space) {
+	cJSON *payload = cJSON_CreateObject();
+	char *reqid = malloc(strlen(space) + 1 + 1);
+	sprintf(reqid,"2%s",space);
+	cJSON_AddStringToObject(payload, "reqid", reqid);
+	cJSON_AddStringToObject(payload, "space", space);
+	cJSON_AddStringToObject(payload, "type", "request");
+	cJSON_AddStringToObject(payload, "endpoint", "getchannels");
+	char *finalPayload = cJSON_Print(payload);
+	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
+	cJSON_free(finalPayload);
+	free(reqid);
 	return 0;
 }
 int SplitAddress(char *address, char **username, char **server) {

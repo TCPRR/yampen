@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <gtk/gtk.h>
+#include "glib.h"
 #include "login.h"
 #include "imwnd.h"
 #include "globals.h"
 #include <cjson/cJSON.h>
 #include "hashtables.h"
+
+GQueue *spaces_queue = NULL;
 GtkApplication *global_app;
 static void activate(GtkApplication *app, gpointer user_data) {
 	CreateMainIMWindow(app);
@@ -21,6 +24,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
 }
 
 int main(int argc, char **argv) {
+	spaces_queue = g_queue_new();
 	InitAllTables();
 	int status;
 
