@@ -10,25 +10,29 @@
 #include "globals.h"
 #include "hashtables.h"
 #include <cjson/cJSON.h>
+#include <curl/curl.h>
 GtkWidget *main_window;
 GtkWidget *BuddyList;
 GtkWidget *GuildList;
 gboolean listmode = TRUE;
-char* curSpace = NULL;
-void onYAMPDisconnected() {
+char *curSpace = NULL;
+CURL *curl;
+static gboolean onUIDisconnected(gpointer none) {
 	GtkAlertDialog *alert = gtk_alert_dialog_new("Server disconnected!");
 	DisplayLoginDialog(global_app);
+	return G_SOURCE_REMOVE;
 }
+void onYAMPDisconnected() { g_idle_add(onUIDisconnected, 0); }
 void on_buddy_row_activated(GtkListBox *box, GtkListBoxRow *row,
                             gpointer user_data) {
 	if (listmode == TRUE) {
-	
-	GtkWidget *child = gtk_widget_get_next_sibling(
-	    gtk_widget_get_first_child(gtk_list_box_row_get_child(row)));
-	char *name = gtk_label_get_text(GTK_LABEL(child));
-	char *username = g_object_get_data(G_OBJECT(child), "username");
 
-	SpawnChatWindow(MakeDMChannel(username, curUsername));
+		GtkWidget *child = gtk_widget_get_next_sibling(
+		    gtk_widget_get_first_child(gtk_list_box_row_get_child(row)));
+		char *name = gtk_label_get_text(GTK_LABEL(child));
+		char *username = g_object_get_data(G_OBJECT(child), "username");
+
+		SpawnChatWindow(MakeDMChannel(username, curUsername));
 	} else {
 		char *channelname =
 		    gtk_label_get_text(GTK_LABEL(gtk_list_box_row_get_child(row)));
@@ -42,7 +46,7 @@ void on_buddy_row_activated(GtkListBox *box, GtkListBoxRow *row,
 GCallback on_space_row_activated(GtkListBox *box, GtkListBoxRow *row,
                                  gpointer user_data) {
 	if ((strcmp((char *)g_object_get_data(G_OBJECT(row), "name"), "dm") == 0)) {
-		if(listmode == FALSE){
+		if (listmode == FALSE) {
 			YAMPListBuddies(mainsock);
 			listmode = TRUE;
 		}
@@ -60,7 +64,7 @@ void onYAMPSpacesFetched(cJSON *Spaces) {
 		GtkWidget *gldbtn = gtk_list_box_row_new();
 		GtkWidget *gldbtnimg = gtk_image_new_from_file("./yamp.png");
 
-		gtk_widget_set_size_request(gldbtnimg, 36, 36);
+		gtk_image_set_pixel_size(GTK_IMAGE(gldbtnimg), 48);
 		gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(gldbtn), gldbtnimg);
 
 		gtk_list_box_append(GTK_LIST_BOX(GuildList), gldbtn);
@@ -93,8 +97,7 @@ void StartMainIMWindow() {
 	GtkWidget *dmsbtn = gtk_list_box_row_new();
 	g_object_set_data(G_OBJECT(dmsbtn), "name", "dm");
 	GtkWidget *dmsbtnimg = gtk_image_new_from_file("./yamp.png");
-
-	gtk_widget_set_size_request(dmsbtnimg, 36, 36);
+	gtk_image_set_pixel_size(GTK_IMAGE(dmsbtnimg), 48);
 	gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(dmsbtn), dmsbtnimg);
 	gtk_list_box_append(GTK_LIST_BOX(GuildList), dmsbtn);
 
@@ -112,7 +115,7 @@ void StartMainIMWindow() {
 	gtk_widget_set_vexpand(BuddyList, TRUE);
 	gtk_box_append(GTK_BOX(hbox), BuddyList);
 	gtk_list_box_set_selection_mode(GTK_LIST_BOX(BuddyList),
-	                                GTK_SELECTION_MULTIPLE); // i need hlep
+	                                GTK_SELECTION_NONE); // i need hlep
 	g_signal_connect(BuddyList, "row-activated",
 	                 G_CALLBACK(on_buddy_row_activated), NULL);
 	GtkWidget *UserDetailsBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
@@ -121,13 +124,11 @@ void StartMainIMWindow() {
 		displayName = curUsername;
 	}
 	GtkWidget *UsernameLabel = gtk_label_new(displayName);
-	GtkWidget *Pfp = gtk_image_new_from_file("./pfp.png");
 
-	gtk_widget_set_size_request(Pfp, 36, 36);
+	GtkWidget *Pfp = gtk_image_new_from_file("./pfp.png");
 	GtkCssProvider *provider = gtk_css_provider_new();
-	gtk_css_provider_load_from_data(
-	    provider, "image { border-radius: 100%; border: 2px solid #108020; }",
-	    -1);
+	gtk_css_provider_load_from_string(
+	    provider, "* { border: 2px solid #108020; -gtk-icon-size: 32px; }");
 
 	gtk_style_context_add_provider(gtk_widget_get_style_context(Pfp),
 	                               GTK_STYLE_PROVIDER(provider),
@@ -147,26 +148,76 @@ void CreateMainIMWindow(GtkApplication *app) {
 	gtk_widget_set_visible(main_window, 0);
 }
 void onYAMPBuddyListed(cJSON *Buddies) {
+
 	gtk_list_box_remove_all(GTK_LIST_BOX(BuddyList));
 	for (int i = 0; i < cJSON_GetArraySize(Buddies); i++) {
 		cJSON *Buddy = cJSON_GetArrayItem(Buddies, i);
 		const char *Name = cJSON_GetObjectItem(Buddy, "name")->valuestring;
 		const char *DisplayName =
 		    cJSON_GetObjectItem(Buddy, "display_name")->valuestring;
-		InsertDisplayName(Name, DisplayName);
+			InsertDisplayName(Name, DisplayName);
+			if(cJSON_GetObjectItem(Buddy, "description")){
+			InsertProfileDescription(Name,cJSON_GetObjectItem(Buddy, "description")->valuestring);
+			}
 		GtkWidget *ItemBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
 		GtkWidget *LBRow = gtk_list_box_row_new();
 		GtkWidget *LBRowLabel = gtk_label_new(DisplayName);
 		GtkWidget *Pfp;
 		if (!cJSON_GetObjectItem(Buddy, "pfp")) {
 			Pfp = gtk_image_new_from_file("./pfp.png");
+			InsertPfpPath(Name,"./pfp.png");
+		} else {
+			curl_easy_setopt(curl, CURLOPT_URL,
+			                 cJSON_GetObjectItem(Buddy, "pfp")->valuestring);
+			size_t len = 10 + strlen(Name);
+			char *filePath = malloc(len);
+			sprintf(filePath, "/tmp/%s.png", Name);
+			FILE *fl = fopen(filePath, "wb");
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, fl);
+			curl_easy_perform(curl);
+			fclose(fl);
+			printf("%s\n", filePath);
+			Pfp = gtk_image_new_from_file(filePath);
+			InsertPfpPath(Name,filePath);
 		}
-		gtk_widget_set_size_request(Pfp, 36, 36);
-		GtkCssProvider *provider = gtk_css_provider_new();
-		gtk_css_provider_load_from_data(
-		    provider,
-		    "image { border-radius: 100%; border: 2px solid #108020; }", -1);
+		char *statusClr;
+		if (strcmp(cJSON_GetObjectItem(cJSON_GetObjectItem(Buddy, "status"),
+		                               "status")
+		               ->valuestring,
+		           "online") == 0) {
+			statusClr = "00C010";
+		} else if (strcmp(cJSON_GetObjectItem(
+		                      cJSON_GetObjectItem(Buddy, "status"), "status")
+		                      ->valuestring,
+		                  "dnd") == 0) {
+			statusClr = "00C010";
+		} else if (strcmp(cJSON_GetObjectItem(
+		                      cJSON_GetObjectItem(Buddy, "status"), "status")
+		                      ->valuestring,
+		                  "developing") == 0) {
+			statusClr = "00FFFF";
+		}
 
+		else if (strcmp(cJSON_GetObjectItem(
+		                    cJSON_GetObjectItem(Buddy, "status"), "status")
+		                    ->valuestring,
+		                "drawing") == 0) {
+			statusClr = "00C0FF";
+		}
+
+		else if (strcmp(cJSON_GetObjectItem(
+		                    cJSON_GetObjectItem(Buddy, "status"), "status")
+		                    ->valuestring,
+		                "gaming") == 0) {
+			statusClr = "FF0080";
+		} else {
+			statusClr = "808080";
+		}
+		GtkCssProvider *provider = gtk_css_provider_new();
+		char *style = malloc(59);
+		sprintf(style, "image { border: 2px solid #%s; -gtk-icon-size: 32px; }",
+		        statusClr);
+		gtk_css_provider_load_from_string(provider, style);
 		gtk_style_context_add_provider(gtk_widget_get_style_context(Pfp),
 		                               GTK_STYLE_PROVIDER(provider),
 		                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);

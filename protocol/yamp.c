@@ -76,9 +76,9 @@ int YAMPSend(int fd, void *payload, uint32_t size) {
 	send(fd, payload, size, 0);
 }
 int YAMPRecv(int fd, char **payload, uint32_t *len) {
-	if (recv(fd, len, 4, 0) > 0) {
+	if (recv(fd, len, 4, MSG_WAITALL) > 0) {
 		*payload = malloc(ntohl(*len));
-		recv(fd, *payload, ntohl(*len), 0);
+		recv(fd, *payload, ntohl(*len), MSG_WAITALL);
 		return 1;
 	}
 	return 0; // server got busted by a segfault :sob:
@@ -97,22 +97,28 @@ void *YAMPRecvLoop(void *fd) {
 					printf("BUDDY LISTED\n");
 					onYAMPBuddyListed(response);
 				}
-				if (strcmp(reqid->valuestring, "0") == 0) {
+				else if (strcmp(reqid->valuestring, "0") == 0) {
 					printf("LOGIN RESP\n");
 					if (strcmp(response->valuestring, "success") == 0) {
-						onYAMPLoggedIn();
 						onYAMPUserDetailsFetched(
 						    cJSON_GetObjectItem(srvr, "user"));
+						onYAMPLoggedIn();
 						onYAMPSpacesFetched(cJSON_GetObjectItem(cJSON_GetObjectItem(srvr, "user"),"spaces"));
 					} else {
 						onYAMPLoginFail();
 					}
 				}
-				if (*(reqid->valuestring) == '2') {
+				else if (*(reqid->valuestring) == '2') {
 					onYAMPChannelsFetched(cJSON_GetObjectItem(srvr, "response"));
 				}
+				else if (strcmp(reqid->valuestring,"GetMessageHistory") == 0) {
+					for(int i = 0; i<cJSON_GetArraySize(response);i++){
+						cJSON* msg = cJSON_GetArrayItem(response,i);
+						onYAMPReceiveIM(cJSON_GetObjectItem(msg, "author")->valuestring,cJSON_GetObjectItem(msg, "where")->valuestring,cJSON_GetObjectItem(msg, "content")->valuestring);
+					}
+				}
 			}
-			if (strcmp(type->valuestring, "event") == 0) {
+			else if (strcmp(type->valuestring, "event") == 0) {
 				cJSON *event = cJSON_GetObjectItem(srvr, "event");
 				cJSON *eventdata = cJSON_GetObjectItem(srvr, "data");
 				if (strcmp(event->valuestring, "recvim") == 0) {
@@ -128,7 +134,7 @@ void *YAMPRecvLoop(void *fd) {
 			free(payload);
 		} else {
 			onYAMPDisconnected();
-			break;
+			return 0;
 		}
 	}
 	return 0;
@@ -213,6 +219,17 @@ int YAMPListSpaceChannels(int fd, char *space) {
 	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
 	cJSON_free(finalPayload);
 	free(reqid);
+	return 0;
+}
+int YAMPGetMessageHistory(int fd, char *where) {
+	cJSON *payload = cJSON_CreateObject();
+	cJSON_AddStringToObject(payload, "reqid", "GetMessageHistory");
+	cJSON_AddStringToObject(payload, "where", where);
+	cJSON_AddStringToObject(payload, "type", "request");
+	cJSON_AddStringToObject(payload, "endpoint", "GetMessageHistory");
+	char *finalPayload = cJSON_Print(payload);
+	YAMPSend(fd, finalPayload, strlen(finalPayload) + 1);
+	cJSON_free(finalPayload);
 	return 0;
 }
 int SplitAddress(char *address, char **username, char **server) {

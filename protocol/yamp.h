@@ -19,3 +19,4 @@ int YAMPSendIM(int fd, char *where, char *content);
 int YAMPListSpaceChannels(int fd, char *space);
 char *MakeDMChannel(const char *a, const char *b);
 gboolean YAMPProcessWhere(char *where, char *curUsername, chat* out);
+int YAMPGetMessageHistory(int fd, char *where);
